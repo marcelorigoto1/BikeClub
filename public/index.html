@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bike Club - Map, Chart, and Images</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #e0f7fa, #80deea, #26c6da);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 5px 20px;
+            height: 50px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .dropdown-container select {
+            padding: 6px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        #content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        #map {
+            flex: 70%;
+            height: 100%;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        #attachments {
+            flex: 30%;
+            background-color: white;
+            padding: 10px;
+            overflow-y: auto;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+        .attachment-viewer {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background-color: #f4f4f4; /* Light background for visibility */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden; /* Ensure content fits within the area */
+        }
+
+        .arrow {
+            position: absolute;
+            top: 10px; /* Place buttons above the content */
+            cursor: pointer;
+            font-size: 24px;
+            color: black;
+            background: rgba(255, 255, 255, 0.8); /* Semi-transparent background for better visibility */
+            border-radius: 50%;
+            padding: 5px 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            z-index: 1000; /* Ensure buttons are above the content */
+        }
+
+        .arrow.left {
+            left: 10px; /* Align left arrow */
+        }
+
+        .arrow.right {
+            right: 10px; /* Align right arrow */
+        }
+
+        #attachment-content {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .attachment-viewer img,
+        .attachment-viewer video {
+            width: 100%; /* Occupy full width */
+            height: 100%; /* Occupy full height */
+            object-fit: cover; /* Ensure the content fills the space without distortion */
+        }
+
+
+        #chart-container {
+            height: 50%; /* Increased height for better aspect ratio */
+            background-color: #fff;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+
+        canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        #layer-controls {
+            position: absolute;
+            top: 60px;
+            left: 10px;
+            background: white;
+            padding: 10px;
+            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Bike Club</h1>
+        <div class="dropdown-container">
+            <select id="layers">
+                <option value="" disabled selected>Select a Route</option>
+                <option value="rota_30_11">Route 30/11/24</option>
+                <option value="rota_03_11">Route 03/11/24</option>
+                <option value="rota_14_12">Route 14/12/24</option>
+                <option value="rota_11_01_25">Route 11/01/25</option>
+                <option value="rota_18_01_25">Route 18/01/25</option>
+            </select>
+        </div>
+    </header>
+
+    <div id="content">
+        <div id="map"></div>
+        <div id="attachments">
+            <div class="attachment-viewer">
+                <span class="arrow left" id="prev-attachment">&#9664;</span>
+                <div id="attachment-content"></div>
+                <span class="arrow right" id="next-attachment">&#9654;</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="chart-container">
+        <canvas id="elevationChart"></canvas>
+    </div>
+
+    <div id="layer-controls">
+        <h4>Toggle Layers</h4>
+    </div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const map = L.map('map').setView([47.818, 12.994], 13);
+
+        const baseLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+        }).addTo(map);
+
+        const colors = [
+            '#FF5733', '#33FF57', '#5733FF', '#FFC300', '#DAF7A6', '#581845',
+            '#900C3F', '#C70039', '#FF5733', '#FFBD33', '#33FFBD', '#8A33FF'
+        ];
+
+        const layers = {};
+        const ctx = document.getElementById('elevationChart').getContext('2d');
+        const elevationChart = new Chart(ctx, {
+            type: 'line',
+            data: { datasets: [] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                aspectRatio: 2, // Sets the width-to-height ratio of the chart
+                scales: {
+                    x: {
+                        type: 'linear',
+                        title: { display: true, text: 'Distance (km)' },
+                    },
+                    y: {
+                        title: { display: true, text: 'Elevation (m)' },
+                        suggestedMin: 0,
+                        suggestedMax: 600,
+                    },
+                },
+            },
+        });
+
+
+        document.getElementById('layers').addEventListener('change', (e) => {
+            const selectedRoute = e.target.value;
+            if (!layers[selectedRoute]) {
+                loadGeoJson(selectedRoute, colors[Math.floor(Math.random() * colors.length)]);
+            }
+        });
+
+        function loadGeoJson(route, color) {
+            fetch(`data/${route}/${route}.geojson`)
+                .then(response => response.json())
+                .then(data => {
+                    const elevationData = [];
+                    const coordinates = data.features.flatMap(f => f.geometry.coordinates);
+                    let totalDistance = 0;
+
+                    const geoJsonLayer = L.geoJSON(data, {
+                        style: { color: color },
+                        onEachFeature: (feature, layer) => {
+                            if (feature.properties) {
+                                const popupContent = `Name: ${feature.properties.name || 'Unknown'}<br>Elevation: ${feature.properties.START_Elevation || 'N/A'}`;
+                                layer.bindPopup(popupContent);
+                            }
+                        },
+                    }).addTo(map);
+
+                    coordinates.forEach(([lon, lat], i) => {
+                        if (i > 0) {
+                            const [prevLon, prevLat] = coordinates[i - 1];
+                            totalDistance += haversine(prevLat, prevLon, lat, lon);
+                        }
+                        elevationData.push({ x: totalDistance.toFixed(2), y: data.features[i]?.properties?.START_Elevation || null });
+                    });
+
+                    layers[route] = { layer: geoJsonLayer, elevationData, color };
+                    updateLayerControl(route);
+                    updateChart();
+                })
+                .catch(err => console.error('Error loading GeoJSON:', err));
+        }
+
+        function updateLayerControl(route) {
+            const layerControls = document.getElementById('layer-controls');
+            const layerToggle = document.createElement('div');
+            layerToggle.innerHTML = `
+                <label>
+                    <input type="checkbox" id="layer-${route}" checked>
+                    ${route}
+                </label>
+            `;
+            layerControls.appendChild(layerToggle);
+
+            const checkbox = layerToggle.querySelector(`#layer-${route}`);
+            checkbox.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    layers[route].layer.addTo(map);
+                    updateChart();
+                } else {
+                    map.removeLayer(layers[route].layer);
+                    removeChartDataset(route);
+                }
+            });
+        }
+
+        function updateChart() {
+            elevationChart.data.datasets = [];
+            Object.keys(layers).forEach(route => {
+                if (map.hasLayer(layers[route].layer)) {
+                    elevationChart.data.datasets.push({
+                        label: route,
+                        data: layers[route].elevationData,
+                        borderColor: layers[route].color,
+                        borderWidth: 0.5,
+                        pointRadius: 1,
+                    });
+                }
+            });
+            elevationChart.update();
+        }
+
+        function removeChartDataset(route) {
+            elevationChart.data.datasets = elevationChart.data.datasets.filter(
+                dataset => dataset.label !== route
+            );
+            elevationChart.update();
+        }
+
+        function haversine(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const toRad = x => (x * Math.PI) / 180;
+            const dLat = toRad(lat2 - lat1);
+            const dLon = toRad(lon2 - lon1);
+            const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+            return R * 4 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        }
+
+
+
+        function loadAttachments(routeFolder) {
+            const attachmentFolder = `data/${routeFolder}/`;
+            console.log("Attachment Folder:", attachmentFolder);
+
+            fetch(attachmentFolder)
+                .then((response) => {
+                    if (response.ok) {
+                        return response.text();
+                    } else {
+                        throw new Error("Unable to fetch attachments.");
+                    }
+                })
+                .then((html) => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, "text/html");
+
+                    const rawLinks = Array.from(doc.querySelectorAll("a")).map((link) =>
+                        link.getAttribute("href")
+                    );
+                    console.log("Raw Links Found:", rawLinks);
+
+                    const filteredLinks = rawLinks.filter(
+                        (file) =>
+                            file.endsWith(".jpeg") ||
+                            file.endsWith(".jpg") ||
+                            file.endsWith(".png") ||
+                            file.endsWith(".mp4") ||
+                            file.endsWith(".MP4") ||
+                            file.endsWith(".JPG")
+                    );
+                    console.log("Filtered Links:", filteredLinks);
+
+                    const links = filteredLinks.map((file) => {
+                        console.log("Processing File Path Before:", file);
+                        let processedFile = file;
+                        if (!file.startsWith("data/")) {
+                            processedFile = `${file.replace(/^\//, "")}`;
+                        }
+                        console.log("Processed File Path After:", processedFile);
+                        return processedFile;
+                    });
+
+                    console.log("Final Links Found:", links);
+
+                    if (links.length === 0) {
+                        displayNoAttachmentsMessage();
+                    } else {
+                        displayAttachments(links);
+                    }
+                })
+                .catch((error) => {
+                    console.error("Error fetching attachments:", error);
+                    displayNoAttachmentsMessage();
+                });
+        }
+
+        function displayAttachments(links) {
+            console.log("Attachments to Display:", links); // Debug here
+            const attachmentContent = document.getElementById("attachment-content");
+            let currentIndex = 0;
+
+            const updateAttachment = () => {
+                const file = links[currentIndex];
+                console.log("Displaying Attachment:", file); // Debug here
+                if (file.endsWith(".mp4")) {
+                    attachmentContent.innerHTML = `<video controls src="${file}" style="max-width: 100%; max-height: 100%;"></video>`;
+                } if (file.endsWith(".MP4")){
+                    attachmentContent.innerHTML = `<video controls src="${file}" style="max-width: 100%; max-height: 100%;"></video>`;
+                } else {
+                    attachmentContent.innerHTML = `<img src="${file}" alt="Attachment" style="max-width: 100%; max-height: 100%;">`;
+                }
+            };
+
+            document.getElementById("prev-attachment").onclick = () => {
+                currentIndex = (currentIndex - 1 + links.length) % links.length;
+                updateAttachment();
+            };
+
+            document.getElementById("next-attachment").onclick = () => {
+                currentIndex = (currentIndex + 1) % links.length;
+                updateAttachment();
+            };
+
+            updateAttachment(); // Load the first attachment
+        }
+
+        document.getElementById("layers").addEventListener("change", function () {
+            const folderName = this.value;
+            console.log("Selected Route Folder:", folderName); // Debug here
+            loadAttachments(folderName);
+        });
+
+
+        function displayNoAttachmentsMessage() {
+            const attachmentContent = document.getElementById("attachment-content");
+            attachmentContent.innerHTML = "<p>No attachments available for this route.</p>";
+        }
+
+    </script>
+</body>
+</html>
