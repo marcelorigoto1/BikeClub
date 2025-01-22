@@ -302,8 +302,8 @@
 
 
         function loadAttachments(routeFolder) {
-            const basePath = window.location.pathname.split('/').slice(0, -1).join('/');
-            const attachmentFolder = `${basePath}/data/${routeFolder}/`;
+            const attachmentFolder = `/BikeClub/data/${routeFolder}/`;
+
             console.log("Attachment Folder:", attachmentFolder);
 
             fetch(attachmentFolder)
