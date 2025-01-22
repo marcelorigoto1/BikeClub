@@ -9,7 +9,7 @@ app.use('/data', express.static(path.join(__dirname, 'data')));
 app.use('/data', serveIndex(path.join(__dirname, 'data'), { icons: true }));
 
 // Serve the public directory
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname)));
 
 const PORT = 8000;
 app.listen(PORT, () => {
