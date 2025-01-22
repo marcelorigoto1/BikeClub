@@ -22,7 +22,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: rgba(0, 0, 0, 0.8);
+            background: #022f40;
             color: white;
             padding: 5px 20px;
             height: 50px;
@@ -54,7 +54,7 @@
 
         #attachments {
             flex: 30%;
-            background-color: white;
+            background-color: #022f40;
             padding: 10px;
             overflow-y: auto;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
@@ -64,7 +64,7 @@
             position: relative;
             width: 100%;
             height: 100%;
-            background-color: #f4f4f4; /* Light background for visibility */
+            background-color: #022f40; /* Light background for visibility */
             display: flex;
             align-items: center;
             justify-content: center;
@@ -110,9 +110,10 @@
 
 
         #chart-container {
-            height: 50%; /* Increased height for better aspect ratio */
-            background-color: #fff;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            height: 40%; /* Increased height for better aspect ratio */
+            background-color: #022f40;
+            box-shadow: 0 4px 10px rgba(244, 244, 244, 0.916);
         }
 
 
@@ -134,6 +135,7 @@
 </head>
 <body>
     <header>
+        <img src="images/bike.png" alt="Bike Icon" style="height: 70px; margin-right: 10px;"> 
         <h1>Bike Club</h1>
         <div class="dropdown-container">
             <select id="layers">
@@ -188,20 +190,52 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: true,
-                aspectRatio: 2, // Sets the width-to-height ratio of the chart
+                aspectRatio: 5, // Sets the width-to-height ratio of the chart
                 scales: {
                     x: {
                         type: 'linear',
-                        title: { display: true, text: 'Distance (km)' },
+                        title: {
+                            display: true,
+                            text: 'Distance (km)',
+                            color: '#FFFFFF', // Color for X-axis title
+                            font: { size: 14 },
+                        },
+                        ticks: {
+                            color: '#38aecc', // Color for X-axis tick labels
+                        },
+                        grid: {
+                            color: '#375A65', // Color for Y-axis grid lines
+                },
                     },
                     y: {
-                        title: { display: true, text: 'Elevation (m)' },
-                        suggestedMin: 0,
-                        suggestedMax: 600,
+                        title: {
+                            display: true,
+                            text: 'Elevation (m)',
+                            color: '#FFFFFF', // Color for Y-axis title
+                            font: { size: 14 },
+                        },
+                        ticks: {
+                            color: '#38aecc', // Color for Y-axis tick labels
+                        },
+                        grid: {
+                            color: '#375A65', // Color for Y-axis grid lines
+                },
+                    },
+                },
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: '#FFFFFF', // Color for legend text
+                        },
+                    },
+                    tooltip: {
+                        titleColor: '#FFFFFF', // Tooltip title color
+                        bodyColor: '#FFD700', // Tooltip body text color
                     },
                 },
             },
         });
+
 
 
         document.getElementById('layers').addEventListener('change', (e) => {
