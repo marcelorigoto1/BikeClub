@@ -303,54 +303,29 @@
 
         function loadAttachments(routeFolder) {
             const attachmentFolder = `https://marcelorigoto1.github.io/BikeClub/data/${routeFolder}/`;
-            const links = [
-                `${attachmentFolder}img.jpeg`,
-                `${attachmentFolder}video.mp4`,
-            ];
-            displayAttachments(links);
 
-
-            console.log("Attachment Folder:", attachmentFolder);
-
-            fetch(attachmentFolder)
-                .then((response) => {
-                    if (response.ok) {
-                        return response.text();
-                    } else {
-                        throw new Error("Unable to fetch attachments.");
+            // Fetch files.json to get file list for the selected route
+            fetch(`https://marcelorigoto1.github.io/BikeClub/data/files.json`)
+                .then(response => response.json())
+                .then(filesData => {
+                    const files = filesData[routeFolder];
+                    if (!files) {
+                        console.error("No files found for route:", routeFolder);
+                        displayNoAttachmentsMessage();
+                        return;
                     }
-                })
-                .then((html) => {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, "text/html");
 
-                    const rawLinks = Array.from(doc.querySelectorAll("a")).map((link) =>
-                        link.getAttribute("href")
-                    );
-                    console.log("Raw Links Found:", rawLinks);
-
-                    const filteredLinks = rawLinks.filter(
-                        (file) =>
+                    // Filter and construct full URLs for attachments
+                    const links = files
+                        .filter(file =>
                             file.endsWith(".jpeg") ||
                             file.endsWith(".jpg") ||
                             file.endsWith(".png") ||
                             file.endsWith(".mp4") ||
                             file.endsWith(".MP4") ||
                             file.endsWith(".JPG")
-                    );
-                    console.log("Filtered Links:", filteredLinks);
-
-                    const links = filteredLinks.map((file) => {
-                        console.log("Processing File Path Before:", file);
-                        let processedFile = file;
-                        if (!file.startsWith("data/")) {
-                            processedFile = `${file.replace(/^\//, "")}`;
-                        }
-                        console.log("Processed File Path After:", processedFile);
-                        return processedFile;
-                    });
-
-                    console.log("Final Links Found:", links);
+                        )
+                        .map(file => `${attachmentFolder}${file}`);
 
                     if (links.length === 0) {
                         displayNoAttachmentsMessage();
@@ -358,23 +333,24 @@
                         displayAttachments(links);
                     }
                 })
-                .catch((error) => {
-                    console.error("Error fetching attachments:", error);
+                .catch(error => {
+                    console.error("Error fetching files.json:", error);
                     displayNoAttachmentsMessage();
                 });
         }
 
+        function displayNoAttachmentsMessage() {
+            const attachmentContent = document.getElementById("attachment-content");
+            attachmentContent.innerHTML = "<p>No attachments available for this route.</p>";
+        }
+
         function displayAttachments(links) {
-            console.log("Attachments to Display:", links); // Debug here
             const attachmentContent = document.getElementById("attachment-content");
             let currentIndex = 0;
 
             const updateAttachment = () => {
                 const file = links[currentIndex];
-                console.log("Displaying Attachment:", file); // Debug here
-                if (file.endsWith(".mp4")) {
-                    attachmentContent.innerHTML = `<video controls src="${file}" style="max-width: 100%; max-height: 100%;"></video>`;
-                } if (file.endsWith(".MP4")){
+                if (file.endsWith(".mp4") || file.endsWith(".MP4")) {
                     attachmentContent.innerHTML = `<video controls src="${file}" style="max-width: 100%; max-height: 100%;"></video>`;
                 } else {
                     attachmentContent.innerHTML = `<img src="${file}" alt="Attachment" style="max-width: 100%; max-height: 100%;">`;
@@ -391,7 +367,7 @@
                 updateAttachment();
             };
 
-            updateAttachment(); // Load the first attachment
+            updateAttachment(); // Display the first attachment
         }
 
         document.getElementById("layers").addEventListener("change", function () {
