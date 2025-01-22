@@ -302,7 +302,14 @@
 
 
         function loadAttachments(routeFolder) {
-            const attachmentFolder = `https://github.com/marcelorigoto1/BikeClub/tree/main/data/${routeFolder}/`;
+            const attachmentFolder = `https://marcelorigoto1.github.io/BikeClub/data/${routeFolder}/`;
+            const links = [
+                `${attachmentFolder}img.jpeg`,
+                `${attachmentFolder}video.mp4`,
+            ];
+            displayAttachments(links);
+
+
             console.log("Attachment Folder:", attachmentFolder);
 
             fetch(attachmentFolder)
