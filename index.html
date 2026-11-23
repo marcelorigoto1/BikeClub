@@ -1,659 +1,1277 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Bike Club - Map, Chart, and Images</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bike Club · Routes</title>
+    <link rel="icon" href="images/bike.png">
 
-    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
     <style>
+        :root {
+            /* Complementary pair: warm orange  <->  deep teal */
+            --accent: #f26b3a;
+            --accent-2: #f7a24b;
+            --accent-soft: rgba(242, 107, 58, 0.13);
+            --teal: #155e63;
+            --teal-deep: #0e3b40;
+            --teal-soft: rgba(21, 94, 99, 0.1);
+
+            /* Warm sand neutrals */
+            --bg: #f3eee6;
+            --panel: #fffdf9;
+            --panel-2: #f6f1e9;
+            --line: rgba(14, 59, 64, 0.1);
+            --text: #13302f;
+            --muted: #6f7f7c;
+            --radius: 16px;
+            --shadow: 0 1px 2px rgba(14, 59, 64, 0.05), 0 8px 24px rgba(14, 59, 64, 0.07);
+        }
+
         * { box-sizing: border-box; }
 
+        html, body { height: 100%; }
+
         body {
-            font-family: 'Montserrat', Arial, sans-serif;
             margin: 0;
-            padding: 0;
-            background: #060e1a;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
+            font-family: 'Inter', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: grid;
+            grid-template-rows: auto 1fr;
             overflow: hidden;
+            -webkit-font-smoothing: antialiased;
         }
+
+        button { font-family: inherit; }
 
         /* ── Header ── */
         header {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            background: linear-gradient(135deg, #0d2137 0%, #1a3a5c 100%);
-            color: white;
-            padding: 0 24px;
-            height: 62px;
-            border-bottom: 2px solid #ff6b35;
-            box-shadow: 0 2px 16px rgba(0,0,0,0.5);
-            z-index: 100;
-            flex-shrink: 0;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 12px 20px;
+            color: #fdf8f1;
+            background:
+                radial-gradient(120% 180% at 100% 0%, rgba(247, 162, 75, 0.18) 0%, transparent 45%),
+                linear-gradient(120deg, var(--teal-deep) 0%, var(--teal) 100%);
+            box-shadow: 0 4px 18px rgba(14, 59, 64, 0.25);
+            z-index: 1100;
         }
 
-        .header-brand {
+
+        .brand {
             display: flex;
             align-items: center;
             gap: 12px;
         }
 
-        .header-brand img {
-            height: 42px;
-            filter: drop-shadow(0 0 8px rgba(255,107,53,0.55));
+        .brand-logo {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: grid;
+            place-items: center;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            box-shadow: 0 6px 18px rgba(242, 107, 58, 0.45);
         }
 
-        .header-brand h1 {
+        .brand-logo img {
+            width: 26px;
+            height: 26px;
+            filter: brightness(0) invert(1);
+        }
+
+        .brand h1 {
             margin: 0;
-            font-size: 22px;
-            font-weight: 700;
-            letter-spacing: 1.5px;
-            background: linear-gradient(90deg, #ffffff 40%, #ff6b35 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: -0.2px;
         }
 
-        /* ── Dropdown ── */
-        .dropdown-container {
-            display: flex;
+        .brand p {
+            margin: 2px 0 0;
+            font-size: 12px;
+            color: rgba(253, 248, 241, 0.65);
+        }
+
+        .btn {
+            display: inline-flex;
             align-items: center;
-            gap: 10px;
-        }
-
-        .dropdown-container label {
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            color: #aac4d8;
-        }
-
-        .dropdown-container select {
-            padding: 8px 38px 8px 16px;
+            gap: 6px;
+            padding: 8px 14px;
             font-size: 13px;
-            font-family: 'Montserrat', sans-serif;
             font-weight: 600;
-            background: #0d2137;
-            color: white;
-            border: 1.5px solid #ff6b35;
-            border-radius: 20px;
-            outline: none;
+            color: var(--text);
+            background: var(--panel-2);
+            border: 1px solid var(--line);
+            border-radius: 999px;
             cursor: pointer;
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23ff6b35' d='M5 7L0 2h10z'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 14px center;
-            transition: border-color 0.2s, box-shadow 0.2s;
+            transition: background 0.15s, border-color 0.15s;
         }
 
-        .dropdown-container select:hover,
-        .dropdown-container select:focus {
-            border-color: #ff9a70;
-            box-shadow: 0 0 0 3px rgba(255,107,53,0.22);
-        }
-
-        .dropdown-container select option {
-            background: #0d2137;
-        }
+        .btn:hover { border-color: var(--teal); background: var(--teal-soft); }
 
         /* ── Layout ── */
-        #content {
-            display: flex;
-            flex: 1;
-            overflow: hidden;
-        }
-
-        #map {
-            flex: 1;
-            height: 100%;
-        }
-
-        /* ── Sidebar ── */
-        #attachments {
-            width: 300px;
-            flex-shrink: 0;
-            background: linear-gradient(180deg, #0d2137 0%, #060e1a 100%);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            border-left: 1px solid rgba(255,107,53,0.2);
-        }
-
-        .sidebar-header {
-            padding: 12px 16px;
-            border-bottom: 1px solid rgba(255,107,53,0.2);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-shrink: 0;
-        }
-
-        .sidebar-header h3 {
-            margin: 0;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1.2px;
-            color: #aac4d8;
-            font-weight: 600;
-        }
-
-        #attachment-counter {
-            font-size: 11px;
-            color: #ff6b35;
-            font-weight: 700;
-            background: rgba(255,107,53,0.12);
-            padding: 2px 8px;
-            border-radius: 10px;
-        }
-
-        .attachment-viewer {
-            position: relative;
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            background: #060e1a;
-        }
-
-        .arrow {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            cursor: pointer;
-            font-size: 14px;
-            color: white;
-            background: rgba(13,33,55,0.88);
-            border: 1.5px solid rgba(255,107,53,0.5);
-            border-radius: 50%;
-            width: 34px;
-            height: 34px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
-            z-index: 10;
-            transition: background 0.2s, border-color 0.2s, transform 0.15s;
-            user-select: none;
-        }
-
-        .arrow:hover {
-            background: rgba(255,107,53,0.9);
-            border-color: #ff6b35;
-            transform: translateY(-50%) scale(1.12);
-        }
-
-        .arrow.left {
-            left: 10px;
-        }
-
-        .arrow.right {
-            right: 10px;
-        }
-
-        #attachment-dots {
-            display: flex;
-            justify-content: center;
-            gap: 6px;
-            padding: 8px 12px;
-            background: #060e1a;
-            flex-shrink: 0;
-            min-height: 28px;
-            flex-wrap: wrap;
-        }
-
-        .dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: #1e3a55;
-            transition: background 0.2s, transform 0.2s;
-            cursor: pointer;
-        }
-
-        .dot.active {
-            background: #ff6b35;
-            transform: scale(1.4);
-        }
-
-        #attachment-content {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-        }
-
-        .attachment-viewer img,
-        .attachment-viewer video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .no-attachments {
-            color: #aac4d8;
-            font-size: 13px;
-            text-align: center;
-            padding: 30px 20px;
-        }
-
-        /* ── Chart ── */
-        #chart-container {
-            background: linear-gradient(180deg, #0d2137 0%, #060e1a 100%);
-            border-top: 2px solid rgba(255,107,53,0.3);
-            padding: 10px 20px 12px;
-            height: 190px;
-            display: flex;
-            flex-direction: column;
-            flex-shrink: 0;
-        }
-
-        .chart-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 6px;
-        }
-
-        .chart-icon {
-            font-size: 13px;
-        }
-
-        .chart-title {
-            font-size: 10px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1.2px;
-            color: #aac4d8;
-        }
-
-        .chart-inner {
-            flex: 1;
-            position: relative;
+        main {
+            display: grid;
+            grid-template-columns: 300px 1fr 340px;
+            grid-template-rows: 1fr 210px;
+            grid-template-areas:
+                "routes map media"
+                "routes chart media";
+            gap: 12px;
+            padding: 12px;
             min-height: 0;
         }
 
-        .chart-inner canvas {
-            width: 100% !important;
-            height: 100% !important;
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
         }
 
-        /* ── Layer controls ── */
-        #layer-controls {
-            position: absolute;
-            top: 72px;
-            left: 10px;
-            background: rgba(6,14,26,0.92);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(255,107,53,0.3);
-            border-radius: 10px;
-            padding: 12px 14px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-            z-index: 1000;
-            min-width: 165px;
+        .card-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px 10px;
         }
 
-        #layer-controls h4 {
-            margin: 0 0 10px 0;
-            font-size: 10px;
+        .card-head h2 {
+            margin: 0;
+            font-size: 11px;
+            font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 1.2px;
-            color: #aac4d8;
+            color: var(--teal);
+        }
+
+        .pill {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--accent);
+            background: var(--accent-soft);
+            padding: 3px 9px;
+            border-radius: 999px;
+        }
+
+        /* ── Routes list ── */
+        #routes { grid-area: routes; }
+
+        #route-list {
+            list-style: none;
+            margin: 0;
+            padding: 0 10px 10px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .route {
+            --c: var(--accent);
+            position: relative;
+            padding: 12px 14px 12px 18px;
+            border-radius: 12px;
+            background: var(--panel-2);
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: border-color 0.15s, transform 0.15s, background 0.15s;
+        }
+
+        .route::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 12px;
+            bottom: 12px;
+            width: 4px;
+            border-radius: 0 4px 4px 0;
+            background: var(--c);
+            opacity: 0.35;
+            transition: opacity 0.15s;
+        }
+
+        .route:hover { transform: translateY(-1px); border-color: var(--line); }
+
+        .route.active {
+            border-color: color-mix(in srgb, var(--c) 55%, transparent);
+            background: color-mix(in srgb, var(--c) 10%, var(--panel-2));
+        }
+
+        .route.active::before { opacity: 1; }
+
+        .route.focused { box-shadow: 0 0 0 2px color-mix(in srgb, var(--c) 45%, transparent); }
+
+        .route-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .route-title {
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .route-date {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        .toggle {
+            width: 34px;
+            height: 20px;
+            border-radius: 999px;
+            background: #d9d0c3;
+            position: relative;
+            flex-shrink: 0;
+            transition: background 0.2s;
+        }
+
+        .toggle::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #fff;
+            transition: transform 0.2s;
+        }
+
+        .route.active .toggle { background: var(--c); }
+        .route.active .toggle::after { transform: translateX(14px); }
+
+        .route-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .route-stats div {
+            background: rgba(14, 59, 64, 0.045);
+            border-radius: 8px;
+            padding: 6px 8px;
+        }
+
+        .route-stats b {
+            display: block;
+            font-size: 13px;
             font-weight: 700;
         }
 
-        #layer-controls label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 12px;
-            color: #cde0f0;
-            cursor: pointer;
-            padding: 4px 0;
-            transition: color 0.15s;
-            font-family: 'Montserrat', sans-serif;
+        .route-stats span {
+            font-size: 10px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
         }
 
-        #layer-controls label:hover {
-            color: #ff6b35;
+        .route-hint {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 8px;
         }
 
-        #layer-controls input[type="checkbox"] {
-            accent-color: #ff6b35;
+        .spinner {
             width: 14px;
             height: 14px;
+            border-radius: 50%;
+            border: 2px solid rgba(14, 59, 64, 0.12);
+            border-top-color: var(--c);
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Map ── */
+        #map-card { grid-area: map; position: relative; }
+
+        #map {
+            flex: 1;
+            background: #e9e3d8;
+        }
+
+        .leaflet-container { font-family: inherit; }
+
+        .leaflet-control-zoom a {
+            background: var(--panel) !important;
+            color: var(--text) !important;
+            border-color: var(--line) !important;
+        }
+
+        .leaflet-bar { box-shadow: var(--shadow) !important; border: 1px solid var(--line) !important; border-radius: 10px !important; overflow: hidden; }
+
+        .leaflet-control-attribution {
+            background: rgba(255, 255, 255, 0.8) !important;
+            color: var(--muted) !important;
+        }
+
+        .leaflet-control-attribution a { color: #4b5b70 !important; }
+
+        .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+            background: var(--panel);
+            color: var(--text);
+            box-shadow: var(--shadow);
+        }
+
+        .leaflet-popup-content { margin: 10px 14px; font-size: 13px; }
+
+        .map-empty {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            pointer-events: none;
+            z-index: 500;
+        }
+
+        .map-empty div {
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid var(--line);
+            padding: 14px 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            color: var(--muted);
+            backdrop-filter: blur(6px);
+        }
+
+        .pin {
+            width: 11px;
+            height: 11px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+        }
+
+        .hover-pin {
+            width: 13px;
+            height: 13px;
+            border-radius: 50%;
+            background: #fff;
+            border: 3px solid var(--accent);
+            box-shadow: 0 0 0 6px rgba(255, 107, 53, 0.25);
+        }
+
+        /* ── Map controls (inside the map) ── */
+        .map-ctrl {
+            display: flex;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid var(--line) !important;
+            border-radius: 10px;
+            box-shadow: var(--shadow);
+            padding: 3px;
+            gap: 2px;
+        }
+
+        .map-ctrl button {
+            border: none;
+            background: transparent;
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text);
+            border-radius: 7px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .map-ctrl button:hover { background: var(--panel-2); }
+        .map-ctrl button.on { background: var(--teal); color: #fff; }
+
+        .fit-ctrl button {
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            font-size: 15px;
+        }
+
+        /* ── Chart ── */
+        #chart-card { grid-area: chart; }
+
+        .chart-inner {
+            position: relative;
+            flex: 1;
+            min-height: 0;
+            padding: 0 14px 12px;
+        }
+
+        .chart-empty {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        /* ── Media ── */
+        #media { grid-area: media; }
+
+        .viewer {
+            position: relative;
+            margin: 0 12px;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #ebe4d9;
+            aspect-ratio: 4 / 3;
+            flex-shrink: 0;
+        }
+
+        .viewer img, .viewer video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            cursor: zoom-in;
+        }
+
+        .viewer video { cursor: default; object-fit: contain; }
+
+        .nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(10, 15, 23, 0.7);
+            color: #fff;
+            font-size: 18px;
+            cursor: pointer;
+            display: grid;
+            place-items: center;
+            backdrop-filter: blur(4px);
+            transition: background 0.15s, transform 0.15s;
+            z-index: 2;
+        }
+
+        .nav:hover { background: var(--teal); transform: translateY(-50%) scale(1.08); }
+        .nav.prev { left: 10px; }
+        .nav.next { right: 10px; }
+
+        .empty-state {
+            height: 100%;
+            display: grid;
+            place-items: center;
+            text-align: center;
+            color: var(--muted);
+            font-size: 13px;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+
+        .media-scroll {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+        }
+
+        #media-info { padding: 12px 14px 0; }
+        #media-info:empty { display: none; }
+
+        .info-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .info-time { font-weight: 700; font-size: 14px; }
+        .info-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+        .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+
+        .badge {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: var(--panel-2);
+            border: 1px solid var(--line);
+            color: var(--teal);
+            background: var(--teal-soft);
+            border-color: transparent;
+        }
+
+        .badge.none { color: var(--muted); background: var(--panel-2); border-color: var(--line); }
+        .badge.warn { color: #c4501f; background: var(--accent-soft); border-color: transparent; }
+
+        .locate {
+            flex-shrink: 0;
+            padding: 6px 12px;
+            font-size: 12px;
+            color: #fff;
+            background: var(--teal);
+            border-color: var(--teal);
+        }
+
+        .locate:hover { background: var(--teal-deep); border-color: var(--teal-deep); }
+
+        #thumbs {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            padding: 12px;
+            align-content: start;
+        }
+
+        .play-tri {
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 5px 0 5px 8px;
+            border-color: transparent transparent transparent currentColor;
+            margin-left: 2px;
+        }
+
+        .thumb .play .play-tri { border-width: 9px 0 9px 14px; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5)); }
+
+        /* ── Photo markers on the map ── */
+        .photo-pin {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            overflow: hidden;
+            background: var(--panel-2);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+            display: grid;
+            place-items: center;
+            font-size: 11px;
+            transition: transform 0.15s, border-color 0.15s;
+        }
+
+        .photo-pin img { width: 100%; height: 100%; object-fit: cover; }
+        .photo-pin:hover { transform: scale(1.3); }
+        .photo-pin.active { border-color: var(--accent) !important; transform: scale(1.6); }
+
+        .thumb {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 10px;
+            overflow: hidden;
+            cursor: pointer;
+            background: var(--panel-2);
+            border: 2px solid transparent;
+            padding: 0;
+            transition: border-color 0.15s, transform 0.15s;
+        }
+
+        .thumb:hover { transform: scale(1.03); }
+        .thumb.active { border-color: var(--accent); }
+
+        .thumb img, .thumb video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            pointer-events: none;
+        }
+
+        .thumb .play {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            color: #fff;
+            font-size: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+        }
+
+        /* ── Lightbox ── */
+        #lightbox {
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 15, 23, 0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 5000;
+            padding: 40px;
+        }
+
+        #lightbox.open { display: flex; }
+
+        #lightbox img, #lightbox video {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 10px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+        }
+
+        #lightbox .close {
+            position: absolute;
+            top: 16px;
+            right: 20px;
+            font-size: 26px;
+            background: none;
+            border: none;
+            color: #fff;
             cursor: pointer;
         }
 
-        .route-dot {
-            width: 9px;
-            height: 9px;
-            border-radius: 50%;
-            display: inline-block;
-            flex-shrink: 0;
+        #lightbox .nav { width: 48px; height: 48px; font-size: 22px; }
+        #lightbox .nav.prev { left: 20px; }
+        #lightbox .nav.next { right: 20px; }
+
+        /* ── Responsive ── */
+        @media (max-width: 1200px) {
+            main { grid-template-columns: 270px 1fr 290px; }
+        }
+
+        @media (max-width: 900px) {
+            body { overflow: auto; display: block; }
+            main {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 60vh 220px auto;
+                grid-template-areas: "routes" "map" "chart" "media";
+            }
+            #route-list { flex-direction: row; overflow-x: auto; }
+            .route { min-width: 240px; }
+            .brand p { display: none; }
         }
     </style>
 </head>
 <body>
     <header>
-        <div class="header-brand">
-            <img src="images/bike.png" alt="Bike Icon">
-            <h1>Bike Club</h1>
-        </div>
-        <div class="dropdown-container">
-            <label for="layers">Route</label>
-            <select id="layers">
-                <option value="" disabled selected>Select a Route</option>
-                <option value="rota_30_11">Route 30/11/24</option>
-                <option value="rota_03_11">Route 03/11/24</option>
-                <option value="rota_14_12">Route 14/12/24</option>
-                <option value="rota_11_01_25">Route 11/01/25</option>
-                <option value="rota_18_01_25">Route 18/01/25</option>
-            </select>
+        <div class="brand">
+            <div class="brand-logo"><img src="images/bike.png" alt=""></div>
+            <div>
+                <h1>Bike Club</h1>
+                <p>Our rides, mapped</p>
+            </div>
         </div>
     </header>
 
-    <div id="content">
-        <div id="map"></div>
-        <div id="attachments">
-            <div class="sidebar-header">
-                <h3>&#128247; Photos &amp; Videos</h3>
-                <span id="attachment-counter"></span>
+    <main>
+        <section class="card" id="routes">
+            <div class="card-head">
+                <h2>Routes</h2>
+                <span class="pill" id="route-count"></span>
             </div>
-            <div class="attachment-viewer">
-                <span class="arrow left" id="prev-attachment">&#9664;</span>
-                <div id="attachment-content"></div>
-                <span class="arrow right" id="next-attachment">&#9654;</span>
+            <ul id="route-list"></ul>
+        </section>
+
+        <section class="card" id="map-card">
+            <div id="map"></div>
+            <div class="map-empty" id="map-empty"><div>Pick a route to start exploring</div></div>
+        </section>
+
+        <section class="card" id="chart-card">
+            <div class="card-head">
+                <h2>Elevation profile</h2>
+                <span class="pill" id="chart-info" hidden></span>
             </div>
-            <div id="attachment-dots"></div>
-        </div>
-    </div>
+            <div class="chart-inner">
+                <canvas id="elevationChart"></canvas>
+                <div class="chart-empty" id="chart-empty">Elevation appears here when a route is on the map</div>
+            </div>
+        </section>
 
-    <div id="chart-container">
-        <div class="chart-header">
-            <span class="chart-icon">&#9978;</span>
-            <span class="chart-title">Elevation Profile</span>
-        </div>
-        <div class="chart-inner">
-            <canvas id="elevationChart"></canvas>
-        </div>
-    </div>
+        <section class="card" id="media">
+            <div class="card-head">
+                <h2 id="media-title">Photos &amp; videos</h2>
+                <span class="pill" id="media-counter" hidden></span>
+            </div>
+            <div class="viewer" id="viewer">
+                <div class="empty-state"><div>Select a route to see<br>its photos and videos</div></div>
+            </div>
+            <div class="media-scroll">
+                <div id="media-info"></div>
+                <div id="thumbs"></div>
+            </div>
+        </section>
+    </main>
 
-    <div id="layer-controls">
-        <h4>Layers</h4>
+    <div id="lightbox">
+        <button class="close" id="lb-close" aria-label="Close">✕</button>
+        <button class="nav prev" id="lb-prev" aria-label="Previous">‹</button>
+        <div id="lb-content" style="display:contents"></div>
+        <button class="nav next" id="lb-next" aria-label="Next">›</button>
     </div>
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        const map = L.map('map').setView([47.818, 12.994], 13);
-
-        const baseLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
-        }).addTo(map);
-
-        const colors = [
-            '#ff6b35', '#38aecc', '#a8e063', '#f7c948', '#e040fb',
-            '#00e5ff', '#ff4081', '#69f0ae', '#ffab40', '#40c4ff'
+        // ── Config ──
+        const ROUTES = [
+            { id: 'rota_03_11',    date: '2024-11-03' },
+            { id: 'rota_30_11',    date: '2024-11-30' },
+            { id: 'rota_14_12',    date: '2024-12-14' },
+            { id: 'rota_11_01_25', date: '2025-01-11' },
+            { id: 'rota_18_01_25', date: '2025-01-18' },
         ];
+        const COLORS = ['#f26b3a', '#1a7f86', '#e0a128', '#2f5f8f', '#c8505f', '#4f8a5b', '#8a5a9e'];
+        const MEDIA_EXT = /\.(jpe?g|png|mp4)$/i;
+        const VIDEO_EXT = /\.mp4$/i;
 
-        const layers = {};
-        const ctx = document.getElementById('elevationChart').getContext('2d');
-        const elevationChart = new Chart(ctx, {
+        ROUTES.forEach((r, i) => {
+            r.color = COLORS[i % COLORS.length];
+            r.name = 'Ride #' + (i + 1);
+            r.dateLabel = new Date(r.date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+        });
+
+        const state = {};           // id -> { layer, profile, stats, visible, loading }
+        let focusedRoute = null;
+        let filesIndex = null;
+
+        // ── Map ──
+        const map = L.map('map', { zoomControl: true }).setView([47.818, 12.994], 12);
+        // MapTiler: create a free key at https://cloud.maptiler.com/account/keys/
+        // and restrict it to your site's domain there (the key is visible in the page).
+        const MAPTILER_KEY = '1nONS0P2LmjFLK6MvU9z';
+
+        const MT_ATTR = '<a href="https://www.maptiler.com/copyright/" target="_blank">© MapTiler</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">© OpenStreetMap contributors</a>';
+        const maptiler = (style, ext = 'png') => L.tileLayer(
+            `https://api.maptiler.com/maps/${style}/256/{z}/{x}/{y}{r}.${ext}?key=${MAPTILER_KEY}`,
+            { attribution: MT_ATTR, maxZoom: 20, crossOrigin: true });
+
+        // Each entry: [label shown on the button, tile layer]
+        const basemaps = MAPTILER_KEY ? [
+            ['Outdoor', maptiler('outdoor-v2')],
+            ['Dark', maptiler('streets-v2-dark')],
+            ['Satellite', maptiler('hybrid', 'jpg')],
+        ] : [
+            ['Dark', L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '© OpenStreetMap contributors © CARTO', maxZoom: 19,
+            })],
+            ['Satellite', L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles © Esri', maxZoom: 19,
+            })],
+        ];
+        let currentBase = 0;
+        basemaps[0][1].addTo(map);
+
+        // Base map switcher, inside the map (top right)
+        const BasemapControl = L.Control.extend({
+            options: { position: 'topright' },
+            onAdd() {
+                const box = L.DomUtil.create('div', 'map-ctrl leaflet-control');
+                L.DomEvent.disableClickPropagation(box);
+                basemaps.forEach(([label], i) => {
+                    const b = L.DomUtil.create('button', i === currentBase ? 'on' : '', box);
+                    b.textContent = label;
+                    b.onclick = () => {
+                        if (i === currentBase) return;
+                        map.removeLayer(basemaps[currentBase][1]);
+                        currentBase = i;
+                        basemaps[i][1].addTo(map);
+                        box.querySelectorAll('button').forEach((x, j) => x.classList.toggle('on', j === i));
+                    };
+                });
+                return box;
+            },
+        });
+        new BasemapControl().addTo(map);
+
+        // "Fit routes" button, under the zoom buttons
+        const FitControl = L.Control.extend({
+            options: { position: 'topleft' },
+            onAdd() {
+                const box = L.DomUtil.create('div', 'map-ctrl fit-ctrl leaflet-control');
+                L.DomEvent.disableClickPropagation(box);
+                const b = L.DomUtil.create('button', '', box);
+                b.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
+                b.title = 'Zoom to visible routes';
+                b.onclick = fitVisible;
+                return box;
+            },
+        });
+        new FitControl().addTo(map);
+
+        const hoverMarker = L.marker([0, 0], {
+            icon: L.divIcon({ className: '', html: '<div class="hover-pin"></div>', iconSize: [13, 13], iconAnchor: [6.5, 6.5] }),
+            interactive: false,
+        });
+
+        function fitVisible() {
+            const bounds = L.latLngBounds([]);
+            ROUTES.forEach(r => { if (state[r.id]?.visible) bounds.extend(state[r.id].line.getBounds()); });
+            if (bounds.isValid()) map.fitBounds(bounds, { padding: [40, 40] });
+        }
+
+        // ── Route list ──
+        const list = document.getElementById('route-list');
+        document.getElementById('route-count').textContent = ROUTES.length;
+
+        ROUTES.forEach(r => {
+            const li = document.createElement('li');
+            li.className = 'route';
+            li.id = 'route-' + r.id;
+            li.style.setProperty('--c', r.color);
+            li.innerHTML = `
+                <div class="route-top">
+                    <div>
+                        <div class="route-title">${r.name}</div>
+                        <div class="route-date">${r.dateLabel}</div>
+                    </div>
+                    <div class="toggle"></div>
+                </div>
+                <div class="route-body"><div class="route-hint">Tap to show on map</div></div>`;
+            li.onclick = () => toggleRoute(r);
+            list.appendChild(li);
+        });
+
+        function renderRouteBody(r) {
+            const body = document.querySelector(`#route-${r.id} .route-body`);
+            const s = state[r.id];
+            if (s?.loading) {
+                body.innerHTML = `<div class="route-hint"><span class="spinner"></span>Loading route…</div>`;
+            } else if (s?.error) {
+                body.innerHTML = `<div class="route-hint">Could not load this route</div>`;
+            } else if (s?.stats) {
+                const st = s.stats;
+                body.innerHTML = `
+                    <div class="route-stats">
+                        <div><b>${st.distance.toFixed(1)} km</b><span>Distance</span></div>
+                        <div><b>${Math.round(st.gain)} m</b><span>Climb</span></div>
+                        <div><b>${st.duration}</b><span>Time</span></div>
+                    </div>`;
+            }
+        }
+
+        function updateRouteClasses() {
+            ROUTES.forEach(r => {
+                const el = document.getElementById('route-' + r.id);
+                el.classList.toggle('active', !!state[r.id]?.visible);
+                el.classList.toggle('focused', focusedRoute === r.id);
+            });
+            const anyVisible = ROUTES.some(r => state[r.id]?.visible);
+            document.getElementById('map-empty').style.display = anyVisible ? 'none' : '';
+        }
+
+        async function toggleRoute(r) {
+            const s = state[r.id];
+            if (s?.loading) return;
+
+            if (!s || s.error) {
+                await loadRoute(r);
+                if (!state[r.id]?.layer) return;
+                state[r.id].visible = true;
+                state[r.id].layer.addTo(map);
+                map.fitBounds(state[r.id].line.getBounds(), { padding: [40, 40] });
+                focusRoute(r);
+            } else if (s.visible && focusedRoute !== r.id) {
+                // Already shown: first click focuses it, second hides it
+                focusRoute(r);
+                map.fitBounds(s.line.getBounds(), { padding: [40, 40] });
+            } else if (s.visible) {
+                s.visible = false;
+                map.removeLayer(s.layer);
+                const next = ROUTES.find(x => state[x.id]?.visible);
+                if (next) focusRoute(next); else clearFocus();
+            } else {
+                s.visible = true;
+                s.layer.addTo(map);
+                map.fitBounds(s.line.getBounds(), { padding: [40, 40] });
+                focusRoute(r);
+            }
+            updateRouteClasses();
+            updateChart();
+        }
+
+        function focusRoute(r) {
+            focusedRoute = r.id;
+            ROUTES.forEach(x => {
+                const s = state[x.id];
+                if (s?.line) s.line.setStyle({ weight: x.id === r.id ? 5 : 3, opacity: x.id === r.id ? 1 : 0.55 });
+            });
+            state[r.id]?.layer.eachLayer(l => l.bringToFront && l.bringToFront());
+            loadMedia(r);
+            updateRouteClasses();
+        }
+
+        function clearFocus() {
+            focusedRoute = null;
+            showMediaEmpty('Select a route to see<br>its photos and videos');
+            document.getElementById('media-title').textContent = 'Photos & videos';
+        }
+
+        // ── Data loading ──
+        async function loadRoute(r) {
+            state[r.id] = { loading: true };
+            renderRouteBody(r);
+            try {
+                const res = await fetch(`data/${r.id}/${r.id}.geojson`);
+                if (!res.ok) throw new Error(res.status);
+                const data = await res.json();
+
+                // Each feature is a short segment; its START_* properties describe its first point.
+                const points = [];
+                data.features.forEach(f => {
+                    const c = f.geometry?.coordinates;
+                    if (!c?.length) return;
+                    points.push({
+                        lon: c[0][0], lat: c[0][1],
+                        ele: f.properties?.START_Elevation ?? null,
+                        t: f.properties?.START_DateTime ?? null,
+                    });
+                });
+                const last = data.features.at(-1)?.geometry?.coordinates?.at(-1);
+                if (last) points.push({ lon: last[0], lat: last[1], ele: points.at(-1)?.ele ?? null, t: points.at(-1)?.t ?? null });
+
+                // Distance + elevation
+                let dist = 0, gain = 0, maxEle = -Infinity, lastEle = null;
+                points.forEach((p, i) => {
+                    if (i > 0) dist += haversine(points[i - 1].lat, points[i - 1].lon, p.lat, p.lon);
+                    p.d = dist;
+                    if (p.ele != null) {
+                        maxEle = Math.max(maxEle, p.ele);
+                        // Small threshold filters out GPS noise when summing climb
+                        if (lastEle == null) lastEle = p.ele;
+                        else if (p.ele - lastEle > 3) { gain += p.ele - lastEle; lastEle = p.ele; }
+                        else if (lastEle - p.ele > 3) lastEle = p.ele;
+                    }
+                });
+
+                const times = points.map(p => p.t).filter(Boolean);
+                const duration = times.length > 1
+                    ? formatDuration(times.reduce((a, b) => Math.max(a, b)) - times.reduce((a, b) => Math.min(a, b)))
+                    : '—';
+
+                // Downsample for the chart (keeps it fast and smooth)
+                const step = Math.max(1, Math.floor(points.length / 800));
+                const profile = points.filter((p, i) => i % step === 0 && p.ele != null)
+                    .map(p => ({ x: +p.d.toFixed(3), y: +p.ele.toFixed(1), lat: p.lat, lng: p.lon }));
+
+                const latlngs = points.map(p => [p.lat, p.lon]);
+                const line = L.polyline(latlngs, { color: r.color, weight: 5, opacity: 1, lineJoin: 'round' });
+                const casing = L.polyline(latlngs, { color: '#fff', weight: 9, opacity: 0.85, interactive: false });
+                const pin = (color) => L.divIcon({ className: '', html: `<div class="pin" style="background:${color}"></div>`, iconSize: [11, 11], iconAnchor: [5.5, 5.5] });
+                const start = L.marker(latlngs[0], { icon: pin('#22c55e') }).bindTooltip('Start');
+                const end = L.marker(latlngs.at(-1), { icon: pin('#ef4444') }).bindTooltip('Finish');
+
+                line.bindPopup(`<b>${r.name}</b><br>${r.dateLabel}<br>${dist.toFixed(1)} km · ${Math.round(gain)} m climb`);
+                line.on('click', () => focusRoute(r));
+
+                state[r.id] = {
+                    layer: L.layerGroup([casing, line, start, end]),
+                    line, profile, visible: false,
+                    stats: { distance: dist, gain, maxEle, duration },
+                };
+            } catch (err) {
+                console.error('Error loading route', r.id, err);
+                state[r.id] = { error: true };
+            }
+            renderRouteBody(r);
+        }
+
+        // media.json (generated by media_create.py) has EXIF + positions.
+        // files.json is the old plain list, used as a fallback.
+        async function getFilesIndex() {
+            if (!filesIndex) {
+                try {
+                    const res = await fetch('data/media.json');
+                    if (!res.ok) throw new Error(res.status);
+                    filesIndex = await res.json();
+                } catch {
+                    const res = await fetch('data/files.json');
+                    const plain = await res.json();
+                    filesIndex = Object.fromEntries(Object.entries(plain).map(([k, files]) =>
+                        [k, files.map(f => ({ file: f, type: VIDEO_EXT.test(f) ? 'video' : 'photo' }))]));
+                }
+            }
+            return filesIndex;
+        }
+
+        // ── Media ──
+        let media = [], mediaIndex = 0;
+
+        function showMediaEmpty(html) {
+            media = [];
+            document.getElementById('viewer').innerHTML = `<div class="empty-state"><div>${html}</div></div>`;
+            document.getElementById('thumbs').innerHTML = '';
+            document.getElementById('media-info').innerHTML = '';
+            document.getElementById('media-counter').hidden = true;
+            highlightMarker();
+        }
+
+        async function getRouteMedia(r) {
+            try {
+                const items = (await getFilesIndex())[r.id] || [];
+                return items.filter(m => MEDIA_EXT.test(m.file))
+                    .map(m => ({ ...m, src: `data/${r.id}/${encodeURIComponent(m.file)}` }));
+            } catch (err) {
+                console.error('Error fetching media index', err);
+                return [];
+            }
+        }
+
+        // Photo/video markers live inside the route's layer group, so they hide with the route.
+        async function addMediaMarkers(r) {
+            const s = state[r.id];
+            if (!s?.layer || s.mediaMarkers) return;
+            s.mediaMarkers = [];
+            const items = await getRouteMedia(r);
+            items.forEach((m, i) => {
+                if (m.lat == null) return;
+                const cls = 'photo-pin';
+                const inner = m.type === 'video' ? '<span class="play-tri"></span>' : `<img src="${m.src}" loading="lazy" alt="">`;
+                const marker = L.marker([m.lat, m.lng], {
+                    icon: L.divIcon({ className: '', html: `<div class="${cls}" style="border-color:${r.color}">${inner}</div>`, iconSize: [18, 18], iconAnchor: [9, 9] }),
+                    zIndexOffset: 500,
+                    riseOnHover: true,
+                }).bindTooltip(`${m.type === 'video' ? 'Video' : 'Photo'} · ${formatTime(m.time) || m.file}`);
+                marker.on('click', async () => {
+                    if (focusedRoute !== r.id) { focusRoute(r); await mediaReady; }
+                    showMedia(i);
+                });
+                s.mediaMarkers[i] = marker;
+                s.layer.addLayer(marker);
+            });
+            highlightMarker();
+        }
+
+        let mediaReady = Promise.resolve();
+
+        function loadMedia(r) {
+            mediaReady = (async () => {
+                document.getElementById('media-title').textContent = `${r.name} · Photos & videos`;
+                const items = await getRouteMedia(r);
+                if (focusedRoute !== r.id) return;
+                media = items;
+                addMediaMarkers(r);
+                if (!media.length) return showMediaEmpty('No photos or videos<br>for this ride yet');
+
+                const thumbs = document.getElementById('thumbs');
+                thumbs.innerHTML = '';
+                media.forEach((m, i) => {
+                    const b = document.createElement('button');
+                    b.className = 'thumb';
+                    b.title = m.file;
+                    b.innerHTML = (m.type === 'video'
+                        ? `<video src="${m.src}#t=1" preload="metadata" muted></video><span class="play"><span class="play-tri"></span></span>`
+                        : `<img src="${m.src}" loading="lazy" alt="">`);
+                    b.onclick = () => showMedia(i);
+                    thumbs.appendChild(b);
+                });
+                showMedia(0);
+            })();
+            return mediaReady;
+        }
+
+        function highlightMarker() {
+            ROUTES.forEach(r => (state[r.id]?.mediaMarkers || []).forEach((mk, i) => {
+                const el = mk?.getElement()?.querySelector('.photo-pin');
+                if (el) el.classList.toggle('active', r.id === focusedRoute && i === mediaIndex);
+            }));
+        }
+
+        function renderMediaInfo(m) {
+            const box = document.getElementById('media-info');
+            const ex = m.exif || {};
+            const camera = [ex.Make, ex.Model].filter(Boolean).join(' ').replace(/^(\w)/, c => c.toUpperCase());
+            const shot = [
+                ex.FNumber && `f/${ex.FNumber}`,
+                ex.ExposureTime && (ex.ExposureTime < 1 ? `1/${Math.round(1 / ex.ExposureTime)}s` : `${ex.ExposureTime}s`),
+                ex.ISOSpeedRatings && `ISO ${ex.ISOSpeedRatings}`,
+                (ex.FocalLengthIn35mmFilm || ex.FocalLength) && `${ex.FocalLengthIn35mmFilm || ex.FocalLength}mm`,
+                m.type === 'video' && ex.Duration && `${Math.round(ex.Duration)}s video`,
+            ].filter(Boolean).join(' · ');
+
+            const badges = [];
+            if (m.lat == null && m.exif) badges.push('<span class="badge none">No location</span>');
+            if (m.alt != null) badges.push(`<span class="badge">${Math.round(m.alt)} m altitude</span>`);
+            if (m.width) badges.push(`<span class="badge">${m.width}×${m.height}</span>`);
+            if (m.otherDay) badges.push('<span class="badge warn" title="This file was taken on a different day than the ride">Different day</span>');
+
+            box.innerHTML = `
+                <div class="info-top">
+                    <div>
+                        <div class="info-time">${formatTime(m.time, true) || m.file}</div>
+                        <div class="info-sub">${[camera, shot].filter(Boolean).join(' — ') || m.file}</div>
+                    </div>
+                    ${m.lat != null ? '<button class="btn locate" id="locate-btn">Show on map</button>' : ''}
+                </div>
+                <div class="badges">${badges.join('')}</div>`;
+
+            const locate = document.getElementById('locate-btn');
+            if (locate) locate.onclick = () => map.flyTo([m.lat, m.lng], Math.max(map.getZoom(), 16), { duration: 0.8 });
+        }
+
+        function mediaElement(m, big) {
+            return m.type === 'video'
+                ? `<video src="${m.src}" controls playsinline ${big ? 'autoplay' : ''}></video>`
+                : `<img src="${m.src}" alt="Ride photo">`;
+        }
+
+        function showMedia(i) {
+            if (!media.length) return;
+            mediaIndex = (i + media.length) % media.length;
+            const item = media[mediaIndex];
+            const viewer = document.getElementById('viewer');
+            viewer.innerHTML = `
+                <button class="nav prev" aria-label="Previous">‹</button>
+                ${mediaElement(item)}
+                <button class="nav next" aria-label="Next">›</button>`;
+            viewer.querySelector('.prev').onclick = () => showMedia(mediaIndex - 1);
+            viewer.querySelector('.next').onclick = () => showMedia(mediaIndex + 1);
+            const img = viewer.querySelector('img');
+            if (img) img.onclick = openLightbox;
+
+            document.querySelectorAll('.thumb').forEach((t, j) => t.classList.toggle('active', j === mediaIndex));
+            const counter = document.getElementById('media-counter');
+            counter.hidden = false;
+            counter.textContent = `${mediaIndex + 1} / ${media.length}`;
+            renderMediaInfo(item);
+            highlightMarker();
+            if (lightbox.classList.contains('open')) renderLightbox();
+        }
+
+        // ── Lightbox ──
+        const lightbox = document.getElementById('lightbox');
+        function openLightbox() { lightbox.classList.add('open'); renderLightbox(); }
+        function closeLightbox() { lightbox.classList.remove('open'); document.getElementById('lb-content').innerHTML = ''; }
+        function renderLightbox() { document.getElementById('lb-content').innerHTML = mediaElement(media[mediaIndex], true); }
+
+        document.getElementById('lb-close').onclick = closeLightbox;
+        document.getElementById('lb-prev').onclick = () => showMedia(mediaIndex - 1);
+        document.getElementById('lb-next').onclick = () => showMedia(mediaIndex + 1);
+        lightbox.onclick = (e) => { if (e.target === lightbox) closeLightbox(); };
+        document.addEventListener('keydown', (e) => {
+            if (!media.length) return;
+            if (e.key === 'Escape') closeLightbox();
+            if (e.key === 'ArrowLeft') showMedia(mediaIndex - 1);
+            if (e.key === 'ArrowRight') showMedia(mediaIndex + 1);
+        });
+
+        // ── Elevation chart ──
+        Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+        Chart.defaults.color = '#6f7f7c';
+
+        const chart = new Chart(document.getElementById('elevationChart'), {
             type: 'line',
             data: { datasets: [] },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: { duration: 400 },
+                parsing: false,
+                interaction: { mode: 'nearest', axis: 'x', intersect: false },
                 scales: {
                     x: {
                         type: 'linear',
-                        title: {
-                            display: true,
-                            text: 'Distance (km)',
-                            color: '#aac4d8',
-                            font: { size: 11, family: 'Montserrat' },
-                        },
-                        ticks: { color: '#38aecc', font: { size: 10 } },
-                        grid: { color: '#1a3a55' },
+                        ticks: { callback: v => v + ' km', maxTicksLimit: 10, font: { size: 11 } },
+                        grid: { color: 'rgba(14,59,64,0.05)' },
+                        border: { display: false },
                     },
                     y: {
-                        title: {
-                            display: true,
-                            text: 'Elevation (m)',
-                            color: '#aac4d8',
-                            font: { size: 11, family: 'Montserrat' },
-                        },
-                        ticks: { color: '#38aecc', font: { size: 10 } },
-                        grid: { color: '#1a3a55' },
+                        ticks: { callback: v => v + ' m', maxTicksLimit: 5, font: { size: 11 } },
+                        grid: { color: 'rgba(14,59,64,0.08)' },
+                        border: { display: false },
                     },
                 },
                 plugins: {
-                    legend: {
-                        labels: {
-                            color: '#cde0f0',
-                            font: { size: 11, family: 'Montserrat' },
-                            boxWidth: 12,
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(255,253,249,0.97)',
+                        borderColor: 'rgba(14,59,64,0.14)',
+                        titleColor: '#13302f',
+                        bodyColor: '#3b4a5e',
+                        borderWidth: 1,
+                        padding: 10,
+                        displayColors: true,
+                        callbacks: {
+                            title: items => items[0].parsed.x.toFixed(1) + ' km',
+                            label: item => ` ${item.dataset.label}: ${Math.round(item.parsed.y)} m`,
                         },
                     },
-                    tooltip: {
-                        backgroundColor: 'rgba(6,14,26,0.92)',
-                        titleColor: '#ff6b35',
-                        bodyColor: '#cde0f0',
-                        borderColor: 'rgba(255,107,53,0.3)',
-                        borderWidth: 1,
-                    },
+                },
+                onHover: (evt, elements) => {
+                    const el = elements[0];
+                    if (!el) { map.removeLayer(hoverMarker); return; }
+                    const p = chart.data.datasets[el.datasetIndex].data[el.index];
+                    hoverMarker.setLatLng([p.lat, p.lng]).addTo(map);
                 },
             },
         });
 
-
-
-        document.getElementById('layers').addEventListener('change', (e) => {
-            const selectedRoute = e.target.value;
-            if (!layers[selectedRoute]) {
-                loadGeoJson(selectedRoute, colors[Math.floor(Math.random() * colors.length)]);
-            }
-        });
-
-        function loadGeoJson(route, color) {
-            fetch(`data/${route}/${route}.geojson`)
-                .then(response => response.json())
-                .then(data => {
-                    const elevationData = [];
-                    const coordinates = data.features.flatMap(f => f.geometry.coordinates);
-                    let totalDistance = 0;
-
-                    const geoJsonLayer = L.geoJSON(data, {
-                        style: { color: color },
-                        onEachFeature: (feature, layer) => {
-                            if (feature.properties) {
-                                const popupContent = `Name: ${feature.properties.name || 'Unknown'}<br>Elevation: ${feature.properties.START_Elevation || 'N/A'}`;
-                                layer.bindPopup(popupContent);
-                            }
-                        },
-                    }).addTo(map);
-
-                    coordinates.forEach(([lon, lat], i) => {
-                        if (i > 0) {
-                            const [prevLon, prevLat] = coordinates[i - 1];
-                            totalDistance += haversine(prevLat, prevLon, lat, lon);
-                        }
-                        elevationData.push({ x: totalDistance.toFixed(2), y: data.features[i]?.properties?.START_Elevation || null });
-                    });
-
-                    layers[route] = { layer: geoJsonLayer, elevationData, color };
-                    updateLayerControl(route);
-                    updateChart();
-                })
-                .catch(err => console.error('Error loading GeoJSON:', err));
-        }
-
-        function updateLayerControl(route) {
-            const layerControls = document.getElementById('layer-controls');
-            const color = layers[route].color;
-            const label = route.replace(/_/g, ' ').replace(/rota /i, '');
-            const layerToggle = document.createElement('div');
-            layerToggle.innerHTML = `
-                <label>
-                    <input type="checkbox" id="layer-${route}" checked>
-                    <span class="route-dot" style="background:${color}"></span>
-                    ${label}
-                </label>
-            `;
-            layerControls.appendChild(layerToggle);
-
-            const checkbox = layerToggle.querySelector(`#layer-${route}`);
-            checkbox.addEventListener('change', (e) => {
-                if (e.target.checked) {
-                    layers[route].layer.addTo(map);
-                    updateChart();
-                } else {
-                    map.removeLayer(layers[route].layer);
-                    removeChartDataset(route);
-                }
-            });
-        }
+        document.getElementById('elevationChart').addEventListener('mouseleave', () => map.removeLayer(hoverMarker));
 
         function updateChart() {
-            elevationChart.data.datasets = [];
-            Object.keys(layers).forEach(route => {
-                if (map.hasLayer(layers[route].layer)) {
-                    elevationChart.data.datasets.push({
-                        label: route,
-                        data: layers[route].elevationData,
-                        borderColor: layers[route].color,
-                        borderWidth: 0.5,
-                        pointRadius: 1,
-                    });
-                }
+            const visible = ROUTES.filter(r => state[r.id]?.visible);
+            const ctx = chart.ctx;
+            chart.data.datasets = visible.map(r => {
+                const h = chart.chartArea?.bottom || 180;
+                const grad = ctx.createLinearGradient(0, 0, 0, h);
+                grad.addColorStop(0, r.color + '40');
+                grad.addColorStop(1, r.color + '00');
+                return {
+                    label: r.name,
+                    data: state[r.id].profile,
+                    borderColor: r.color,
+                    backgroundColor: grad,
+                    fill: visible.length === 1 ? 'origin' : false,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    tension: 0.25,
+                };
             });
-            elevationChart.update();
+            chart.update();
+
+            document.getElementById('chart-empty').style.display = visible.length ? 'none' : '';
+            const info = document.getElementById('chart-info');
+            if (visible.length === 1) {
+                const st = state[visible[0].id].stats;
+                info.hidden = false;
+                info.textContent = `Max ${Math.round(st.maxEle)} m · +${Math.round(st.gain)} m`;
+            } else {
+                info.hidden = true;
+            }
         }
 
-        function removeChartDataset(route) {
-            elevationChart.data.datasets = elevationChart.data.datasets.filter(
-                dataset => dataset.label !== route
-            );
-            elevationChart.update();
-        }
-
+        // ── Helpers ──
         function haversine(lat1, lon1, lat2, lon2) {
             const R = 6371;
             const toRad = x => (x * Math.PI) / 180;
             const dLat = toRad(lat2 - lat1);
             const dLon = toRad(lon2 - lon1);
             const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-            return R * 4 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         }
 
-
-
-        function loadAttachments(routeFolder) {
-            const attachmentFolder = `https://marcelorigoto1.github.io/BikeClub/data/${routeFolder}/`;
-
-            // Fetch files.json to get file list for the selected route
-            fetch(`https://marcelorigoto1.github.io/BikeClub/data/files.json`)
-                .then(response => response.json())
-                .then(filesData => {
-                    const files = filesData[routeFolder];
-                    if (!files) {
-                        console.error("No files found for route:", routeFolder);
-                        displayNoAttachmentsMessage();
-                        return;
-                    }
-
-                    // Filter and construct full URLs for attachments
-                    const links = files
-                        .filter(file =>
-                            file.endsWith(".jpeg") ||
-                            file.endsWith(".jpg") ||
-                            file.endsWith(".png") ||
-                            file.endsWith(".mp4") ||
-                            file.endsWith(".MP4") ||
-                            file.endsWith(".JPG")
-                        )
-                        .map(file => `${attachmentFolder}${file}`);
-
-                    if (links.length === 0) {
-                        displayNoAttachmentsMessage();
-                    } else {
-                        displayAttachments(links);
-                    }
-                })
-                .catch(error => {
-                    console.error("Error fetching files.json:", error);
-                    displayNoAttachmentsMessage();
-                });
+        function formatTime(iso, long) {
+            if (!iso) return '';
+            // Keep the local time written in the file (e.g. 2024-12-14T12:43:09+01:00)
+            const [d, t] = iso.split('T');
+            const [y, mo, day] = d.split('-');
+            const hm = t.slice(0, 5);
+            return long ? `${day}/${mo}/${y} · ${hm}` : hm;
         }
 
-        function displayNoAttachmentsMessage() {
-            const attachmentContent = document.getElementById('attachment-content');
-            attachmentContent.innerHTML = '<p class="no-attachments">No photos or videos<br>for this route.</p>';
-            document.getElementById('attachment-counter').textContent = '';
-            document.getElementById('attachment-dots').innerHTML = '';
+        function formatDuration(ms) {
+            const mins = Math.round(ms / 60000);
+            const h = Math.floor(mins / 60), m = mins % 60;
+            return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m} min`;
         }
 
-        function displayAttachments(links) {
-            const attachmentContent = document.getElementById('attachment-content');
-            const counter = document.getElementById('attachment-counter');
-            const dotsContainer = document.getElementById('attachment-dots');
-            let currentIndex = 0;
-
-            dotsContainer.innerHTML = '';
-            const maxDots = Math.min(links.length, 20);
-            for (let i = 0; i < maxDots; i++) {
-                const dot = document.createElement('span');
-                dot.className = 'dot' + (i === 0 ? ' active' : '');
-                const idx = i;
-                dot.onclick = () => { currentIndex = idx; updateAttachment(); };
-                dotsContainer.appendChild(dot);
-            }
-
-            const updateDots = () => {
-                dotsContainer.querySelectorAll('.dot').forEach((d, i) => {
-                    d.classList.toggle('active', i === currentIndex);
-                });
-                counter.textContent = `${currentIndex + 1} / ${links.length}`;
-            };
-
-            const updateAttachment = () => {
-                const file = links[currentIndex];
-                if (file.endsWith('.mp4') || file.endsWith('.MP4')) {
-                    attachmentContent.innerHTML = `<video controls src="${file}" style="max-width:100%;max-height:100%;"></video>`;
-                } else {
-                    attachmentContent.innerHTML = `<img src="${file}" alt="Attachment" style="max-width:100%;max-height:100%;">`;
-                }
-                updateDots();
-            };
-
-            document.getElementById('prev-attachment').onclick = () => {
-                currentIndex = (currentIndex - 1 + links.length) % links.length;
-                updateAttachment();
-            };
-
-            document.getElementById('next-attachment').onclick = () => {
-                currentIndex = (currentIndex + 1) % links.length;
-                updateAttachment();
-            };
-
-            updateAttachment();
-        }
-
-        document.getElementById('layers').addEventListener('change', function () {
-            const folderName = this.value;
-            loadAttachments(folderName);
-        });
-
+        // Open the most recent ride by default
+        toggleRoute(ROUTES.at(-1));
     </script>
 </body>
 </html>
