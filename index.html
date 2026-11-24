@@ -6,7 +6,7 @@
     <title>Bike Club · Routes</title>
     <link rel="icon" href="images/bike.png">
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -311,30 +311,34 @@
             background: #e9e3d8;
         }
 
-        .leaflet-container { font-family: inherit; }
+        .maplibregl-map { font-family: inherit; }
 
-        .leaflet-control-zoom a {
+        .maplibregl-ctrl-group {
             background: var(--panel) !important;
-            color: var(--text) !important;
-            border-color: var(--line) !important;
+            border: 1px solid var(--line);
+            border-radius: 10px !important;
+            box-shadow: var(--shadow) !important;
+            overflow: hidden;
         }
 
-        .leaflet-bar { box-shadow: var(--shadow) !important; border: 1px solid var(--line) !important; border-radius: 10px !important; overflow: hidden; }
-
-        .leaflet-control-attribution {
-            background: rgba(255, 255, 255, 0.8) !important;
-            color: var(--muted) !important;
+        .maplibregl-ctrl-attrib {
+            background: rgba(255, 253, 249, 0.85) !important;
+            color: var(--muted);
+            font-size: 11px;
         }
 
-        .leaflet-control-attribution a { color: #4b5b70 !important; }
+        .maplibregl-ctrl-attrib a { color: #4b5b70; }
 
-        .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+        .maplibregl-popup-content {
             background: var(--panel);
             color: var(--text);
+            border-radius: 10px;
             box-shadow: var(--shadow);
+            padding: 10px 14px;
+            font-size: 13px;
         }
 
-        .leaflet-popup-content { margin: 10px 14px; font-size: 13px; }
+        .maplibregl-popup-tip { border-top-color: var(--panel) !important; border-bottom-color: var(--panel) !important; }
 
         .map-empty {
             position: absolute;
@@ -405,6 +409,16 @@
             padding: 0;
             font-size: 15px;
         }
+
+        .fit-ctrl button { display: grid; place-items: center; }
+
+        .ctrl-sep {
+            width: 1px;
+            margin: 4px 3px;
+            background: var(--line);
+        }
+
+        .photo-marker { cursor: pointer; }
 
         /* ── Chart ── */
         #chart-card { grid-area: chart; }
@@ -714,7 +728,7 @@
         <button class="nav next" id="lb-next" aria-label="Next">›</button>
     </div>
 
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         // ── Config ──
@@ -740,78 +754,160 @@
         let filesIndex = null;
 
         // ── Map ──
-        const map = L.map('map', { zoomControl: true }).setView([47.818, 12.994], 12);
-        // MapTiler: create a free key at https://cloud.maptiler.com/account/keys/
-        // and restrict it to your site's domain there (the key is visible in the page).
+        // MapTiler key (restricted to this site's domains in the MapTiler dashboard).
+        // The style file holds no key: it is appended to every MapTiler request here.
         const MAPTILER_KEY = '1nONS0P2LmjFLK6MvU9z';
 
-        const MT_ATTR = '<a href="https://www.maptiler.com/copyright/" target="_blank">© MapTiler</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">© OpenStreetMap contributors</a>';
-        const maptiler = (style, ext = 'png') => L.tileLayer(
-            `https://api.maptiler.com/maps/${style}/256/{z}/{x}/{y}{r}.${ext}?key=${MAPTILER_KEY}`,
-            { attribution: MT_ATTR, maxZoom: 20, crossOrigin: true });
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: 'styles/bikeclub-outdoor.json',
+            center: [12.994, 47.818],
+            zoom: 11,
+            maxPitch: 75,
+            attributionControl: { compact: true },
+            transformRequest: (url) => {
+                if (url.startsWith('https://api.maptiler.com/') && !/[?&]key=/.test(url)) {
+                    return { url: url + (url.includes('?') ? '&' : '?') + 'key=' + MAPTILER_KEY };
+                }
+            },
+        });
+        const mapReady = new Promise(resolve => map.once('load', resolve));
 
-        // Each entry: [label shown on the button, tile layer]
-        const basemaps = MAPTILER_KEY ? [
-            ['Outdoor', maptiler('outdoor-v2')],
-            ['Dark', maptiler('streets-v2-dark')],
-            ['Satellite', maptiler('hybrid', 'jpg')],
-        ] : [
-            ['Dark', L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                attribution: '© OpenStreetMap contributors © CARTO', maxZoom: 19,
-            })],
-            ['Satellite', L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                attribution: 'Tiles © Esri', maxZoom: 19,
-            })],
-        ];
-        let currentBase = 0;
-        basemaps[0][1].addTo(map);
+        map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-left');
+        map.addControl(new maplibregl.ScaleControl({ maxWidth: 110 }), 'bottom-left');
 
-        // Base map switcher, inside the map (top right)
-        const BasemapControl = L.Control.extend({
-            options: { position: 'topright' },
+        // ── Icons (drawn on canvas, so the style needs no sprite file) ──
+        const ICONS = {
+            bicycle:        { color: '#1f8b91', path: 'M5.5 13.5a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7M18.5 13.5a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7M5.5 17l4-7h6.5l2.5 7M9.5 10l3.5 7l3-7M13 6.5h2.5' },
+            cafe:           { color: '#9a6a3e', path: 'M5 9h11v5a4.5 4.5 0 0 1-4.5 4.5h-2A4.5 4.5 0 0 1 5 14zM16 10.5h1.5a2.5 2.5 0 0 1 0 5H16M8 4.5v2M11.5 4.5v2' },
+            drinking_water: { color: '#3f86a6', path: 'M12 3.5c3.2 4.2 5.5 7 5.5 10a5.5 5.5 0 0 1-11 0c0-3 2.3-5.8 5.5-10z' },
+            beer:           { color: '#c98a1c', path: 'M6 7h9v12H6zM15 10h2.5a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5H15M9 10.5v5M12 10.5v5' },
+            shelter:        { color: '#6f8a55', path: 'M3.5 12.5L12 5l8.5 7.5M7 10.5V19h10v-8.5' },
+            toilets:        { color: '#7a7f8a', text: 'WC' },
+            viewpoint:      { color: '#e2672f', path: 'M2.5 12s3.5-6 9.5-6s9.5 6 9.5 6s-3.5 6-9.5 6s-9.5-6-9.5-6zM12 9.3a2.7 2.7 0 1 0 0 5.4a2.7 2.7 0 1 0 0-5.4' },
+            peak:           { peak: true },
+        };
+
+        function drawIcon(name) {
+            const def = ICONS[name];
+            if (!def) return null;
+            const pr = 2, size = def.peak ? 13 : 20;
+            const c = document.createElement('canvas');
+            c.width = c.height = size * pr;
+            const g = c.getContext('2d');
+            g.scale(pr, pr);
+            if (def.peak) {
+                g.beginPath();
+                g.moveTo(size / 2, 1.5); g.lineTo(size - 1, size - 1.5); g.lineTo(1, size - 1.5); g.closePath();
+                g.fillStyle = '#7a5f3e'; g.fill();
+                g.strokeStyle = '#fbf8f2'; g.lineWidth = 1.4; g.stroke();
+            } else {
+                g.beginPath();
+                g.arc(size / 2, size / 2, size / 2 - 1.2, 0, Math.PI * 2);
+                g.fillStyle = def.color; g.fill();
+                g.strokeStyle = '#ffffff'; g.lineWidth = 1.4; g.stroke();
+                if (def.text) {
+                    g.fillStyle = '#fff'; g.font = '700 7.5px Inter, Arial, sans-serif';
+                    g.textAlign = 'center'; g.textBaseline = 'middle';
+                    g.fillText(def.text, size / 2, size / 2 + 0.5);
+                } else {
+                    const k = (size - 8) / 24;
+                    g.translate(4, 4); g.scale(k, k);
+                    g.strokeStyle = '#fff'; g.lineWidth = 2.3; g.lineCap = 'round'; g.lineJoin = 'round';
+                    g.stroke(new Path2D(def.path));
+                }
+            }
+            const px = g.getImageData(0, 0, c.width, c.height);
+            return { width: px.width, height: px.height, data: new Uint8Array(px.data.buffer) };
+        }
+
+        map.on('styleimagemissing', (e) => {
+            if (map.hasImage(e.id)) return;
+            const img = drawIcon(e.id);
+            if (img) map.addImage(e.id, img, { pixelRatio: 2 });
+        });
+
+        // ── Map controls ──
+        let satelliteOn = false, terrainOn = false;
+
+        // Relief layers are hidden over satellite imagery (it already shows the terrain).
+        const RELIEF_LAYERS = ['hillshade', 'contour', 'contour-index', 'label-contour'];
+
+        function setSatellite(on) {
+            satelliteOn = on;
+            map.setLayoutProperty('satellite', 'visibility', on ? 'visible' : 'none');
+            RELIEF_LAYERS.forEach(id => map.setLayoutProperty(id, 'visibility', on ? 'none' : 'visible'));
+        }
+
+        function setTerrain(on) {
+            terrainOn = on;
+            map.setTerrain(on ? { source: 'terrain', exaggeration: 1.4 } : null);
+            map.setLayoutProperty('building-3d', 'visibility', on ? 'visible' : 'none');
+            map.setLayoutProperty('building', 'visibility', on ? 'none' : 'visible');
+            map.easeTo({ pitch: on ? 60 : 0, bearing: on ? (map.getBearing() || -20) : 0, duration: 900 });
+        }
+
+        class MapModeControl {
             onAdd() {
-                const box = L.DomUtil.create('div', 'map-ctrl leaflet-control');
-                L.DomEvent.disableClickPropagation(box);
-                basemaps.forEach(([label], i) => {
-                    const b = L.DomUtil.create('button', i === currentBase ? 'on' : '', box);
+                const box = document.createElement('div');
+                box.className = 'maplibregl-ctrl map-ctrl';
+                const mk = (label, title, onClick) => {
+                    const b = document.createElement('button');
+                    b.type = 'button';
                     b.textContent = label;
-                    b.onclick = () => {
-                        if (i === currentBase) return;
-                        map.removeLayer(basemaps[currentBase][1]);
-                        currentBase = i;
-                        basemaps[i][1].addTo(map);
-                        box.querySelectorAll('button').forEach((x, j) => x.classList.toggle('on', j === i));
-                    };
-                });
+                    b.title = title;
+                    b.onclick = onClick;
+                    box.appendChild(b);
+                    return b;
+                };
+                const sync = () => {
+                    mapBtn.classList.toggle('on', !satelliteOn);
+                    satBtn.classList.toggle('on', satelliteOn);
+                    terBtn.classList.toggle('on', terrainOn);
+                };
+                const mapBtn = mk('Map', 'Bike Club Outdoor style', () => { setSatellite(false); sync(); });
+                const satBtn = mk('Satellite', 'Satellite imagery with roads and labels', () => { setSatellite(true); sync(); });
+                const sep = document.createElement('span');
+                sep.className = 'ctrl-sep';
+                box.appendChild(sep);
+                const terBtn = mk('3D', '3D terrain and buildings', () => { setTerrain(!terrainOn); sync(); });
+                sync();
                 return box;
-            },
-        });
-        new BasemapControl().addTo(map);
+            }
+            onRemove() {}
+        }
 
-        // "Fit routes" button, under the zoom buttons
-        const FitControl = L.Control.extend({
-            options: { position: 'topleft' },
+        class FitControl {
             onAdd() {
-                const box = L.DomUtil.create('div', 'map-ctrl fit-ctrl leaflet-control');
-                L.DomEvent.disableClickPropagation(box);
-                const b = L.DomUtil.create('button', '', box);
-                b.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
+                const box = document.createElement('div');
+                box.className = 'maplibregl-ctrl map-ctrl fit-ctrl';
+                const b = document.createElement('button');
+                b.type = 'button';
                 b.title = 'Zoom to visible routes';
+                b.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
                 b.onclick = fitVisible;
+                box.appendChild(b);
                 return box;
-            },
-        });
-        new FitControl().addTo(map);
+            }
+            onRemove() {}
+        }
 
-        const hoverMarker = L.marker([0, 0], {
-            icon: L.divIcon({ className: '', html: '<div class="hover-pin"></div>', iconSize: [13, 13], iconAnchor: [6.5, 6.5] }),
-            interactive: false,
-        });
+        map.addControl(new MapModeControl(), 'top-right');
+        map.addControl(new FitControl(), 'top-left');
+
+        const hoverEl = document.createElement('div');
+        hoverEl.className = 'hover-pin';
+        const hoverMarker = new maplibregl.Marker({ element: hoverEl });
+        const showHover = (lng, lat) => hoverMarker.setLngLat([lng, lat]).addTo(map);
+        const hideHover = () => hoverMarker.remove();
+
+        // Route layers go under the first label layer, so place names stay readable on top.
+        const firstLabelId = () => map.getStyle().layers.find(l => l.type === 'symbol')?.id;
 
         function fitVisible() {
-            const bounds = L.latLngBounds([]);
-            ROUTES.forEach(r => { if (state[r.id]?.visible) bounds.extend(state[r.id].line.getBounds()); });
-            if (bounds.isValid()) map.fitBounds(bounds, { padding: [40, 40] });
+            const bounds = new maplibregl.LngLatBounds();
+            ROUTES.forEach(r => { if (state[r.id]?.visible) bounds.extend(state[r.id].bounds); });
+            if (!bounds.isEmpty()) map.fitBounds(bounds, { padding: 50, duration: 900 });
         }
 
         // ── Route list ──
@@ -870,40 +966,52 @@
 
             if (!s || s.error) {
                 await loadRoute(r);
-                if (!state[r.id]?.layer) return;
-                state[r.id].visible = true;
-                state[r.id].layer.addTo(map);
-                map.fitBounds(state[r.id].line.getBounds(), { padding: [40, 40] });
+                if (!state[r.id]?.layersAdded) return;
+                setRouteVisible(r, true);
+                map.fitBounds(state[r.id].bounds, { padding: 50, duration: 900 });
                 focusRoute(r);
             } else if (s.visible && focusedRoute !== r.id) {
                 // Already shown: first click focuses it, second hides it
                 focusRoute(r);
-                map.fitBounds(s.line.getBounds(), { padding: [40, 40] });
+                map.fitBounds(s.bounds, { padding: 50, duration: 900 });
             } else if (s.visible) {
-                s.visible = false;
-                map.removeLayer(s.layer);
+                setRouteVisible(r, false);
                 const next = ROUTES.find(x => state[x.id]?.visible);
                 if (next) focusRoute(next); else clearFocus();
             } else {
-                s.visible = true;
-                s.layer.addTo(map);
-                map.fitBounds(s.line.getBounds(), { padding: [40, 40] });
+                setRouteVisible(r, true);
+                map.fitBounds(s.bounds, { padding: 50, duration: 900 });
                 focusRoute(r);
             }
             updateRouteClasses();
             updateChart();
         }
 
+        const routeLayerIds = (id) => [`route-${id}-casing`, `route-${id}-line`, `route-${id}-ends`];
+
+        function setRouteVisible(r, on) {
+            const s = state[r.id];
+            s.visible = on;
+            routeLayerIds(r.id).forEach(l => map.setLayoutProperty(l, 'visibility', on ? 'visible' : 'none'));
+            (s.mediaMarkers || []).forEach(mk => mk && (on ? mk.addTo(map) : mk.remove()));
+        }
+
         function focusRoute(r) {
             focusedRoute = r.id;
             ROUTES.forEach(x => {
-                const s = state[x.id];
-                if (s?.line) s.line.setStyle({ weight: x.id === r.id ? 5 : 3, opacity: x.id === r.id ? 1 : 0.55 });
+                if (!state[x.id]?.layersAdded) return;
+                const focused = x.id === r.id;
+                map.setPaintProperty(`route-${x.id}-line`, 'line-opacity', focused ? 1 : 0.5);
+                map.setPaintProperty(`route-${x.id}-line`, 'line-width', routeWidth(focused ? 1 : 0.65));
             });
-            state[r.id]?.layer.eachLayer(l => l.bringToFront && l.bringToFront());
+            // Draw the focused route above the others (still under the labels)
+            if (state[r.id]?.layersAdded) routeLayerIds(r.id).forEach(l => map.moveLayer(l, firstLabelId()));
             loadMedia(r);
             updateRouteClasses();
         }
+
+        // Line width grows with zoom; `k` scales it down for routes that are not focused.
+        const routeWidth = (k) => ['interpolate', ['linear'], ['zoom'], 9, 2.5 * k, 13, 4.5 * k, 17, 8 * k];
 
         function clearFocus() {
             focusedRoute = null;
@@ -958,19 +1066,14 @@
                 const profile = points.filter((p, i) => i % step === 0 && p.ele != null)
                     .map(p => ({ x: +p.d.toFixed(3), y: +p.ele.toFixed(1), lat: p.lat, lng: p.lon }));
 
-                const latlngs = points.map(p => [p.lat, p.lon]);
-                const line = L.polyline(latlngs, { color: r.color, weight: 5, opacity: 1, lineJoin: 'round' });
-                const casing = L.polyline(latlngs, { color: '#fff', weight: 9, opacity: 0.85, interactive: false });
-                const pin = (color) => L.divIcon({ className: '', html: `<div class="pin" style="background:${color}"></div>`, iconSize: [11, 11], iconAnchor: [5.5, 5.5] });
-                const start = L.marker(latlngs[0], { icon: pin('#22c55e') }).bindTooltip('Start');
-                const end = L.marker(latlngs.at(-1), { icon: pin('#ef4444') }).bindTooltip('Finish');
+                const coords = points.map(p => [p.lon, p.lat]);
+                const bounds = coords.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds(coords[0], coords[0]));
 
-                line.bindPopup(`<b>${r.name}</b><br>${r.dateLabel}<br>${dist.toFixed(1)} km · ${Math.round(gain)} m climb`);
-                line.on('click', () => focusRoute(r));
+                await mapReady;
+                addRouteLayers(r, coords);
 
                 state[r.id] = {
-                    layer: L.layerGroup([casing, line, start, end]),
-                    line, profile, visible: false,
+                    layersAdded: true, bounds, profile, visible: false,
                     stats: { distance: dist, gain, maxEle, duration },
                 };
             } catch (err) {
@@ -978,6 +1081,58 @@
                 state[r.id] = { error: true };
             }
             renderRouteBody(r);
+        }
+
+        // One GeoJSON source per ride: the track line plus its start/finish points.
+        function addRouteLayers(r, coords) {
+            const id = r.id, before = firstLabelId();
+            map.addSource(`route-${id}`, {
+                type: 'geojson',
+                data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } },
+            });
+            map.addSource(`route-${id}-ends`, {
+                type: 'geojson',
+                data: {
+                    type: 'FeatureCollection',
+                    features: [
+                        { type: 'Feature', properties: { kind: 'start' }, geometry: { type: 'Point', coordinates: coords[0] } },
+                        { type: 'Feature', properties: { kind: 'finish' }, geometry: { type: 'Point', coordinates: coords.at(-1) } },
+                    ],
+                },
+            });
+            const lineLayout = { 'line-cap': 'round', 'line-join': 'round', visibility: 'none' };
+            map.addLayer({
+                id: `route-${id}-casing`, type: 'line', source: `route-${id}`, layout: lineLayout,
+                paint: {
+                    'line-color': '#ffffff',
+                    'line-opacity': 0.9,
+                    'line-width': ['interpolate', ['linear'], ['zoom'], 9, 5, 13, 8, 17, 13],
+                },
+            }, before);
+            map.addLayer({
+                id: `route-${id}-line`, type: 'line', source: `route-${id}`, layout: lineLayout,
+                paint: { 'line-color': r.color, 'line-width': routeWidth(1) },
+            }, before);
+            map.addLayer({
+                id: `route-${id}-ends`, type: 'circle', source: `route-${id}-ends`, layout: { visibility: 'none' },
+                paint: {
+                    'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 3.5, 15, 6],
+                    'circle-color': ['match', ['get', 'kind'], 'start', '#2f9e5b', '#d64545'],
+                    'circle-stroke-color': '#ffffff',
+                    'circle-stroke-width': 2,
+                },
+            }, before);
+
+            map.on('click', `route-${id}-line`, (e) => {
+                const st = state[id]?.stats;
+                new maplibregl.Popup({ offset: 8 })
+                    .setLngLat(e.lngLat)
+                    .setHTML(`<b>${r.name}</b><br>${r.dateLabel}${st ? `<br>${st.distance.toFixed(1)} km · ${Math.round(st.gain)} m climb` : ''}`)
+                    .addTo(map);
+                if (focusedRoute !== id) focusRoute(r);
+            });
+            map.on('mouseenter', `route-${id}-line`, () => { map.getCanvas().style.cursor = 'pointer'; });
+            map.on('mouseleave', `route-${id}-line`, () => { map.getCanvas().style.cursor = ''; });
         }
 
         // media.json (generated by media_create.py) has EXIF + positions.
@@ -1021,27 +1176,26 @@
             }
         }
 
-        // Photo/video markers live inside the route's layer group, so they hide with the route.
+        // Photo/video markers belong to their route: setRouteVisible() shows and hides them with it.
         async function addMediaMarkers(r) {
             const s = state[r.id];
-            if (!s?.layer || s.mediaMarkers) return;
+            if (!s?.layersAdded || s.mediaMarkers) return;
             s.mediaMarkers = [];
             const items = await getRouteMedia(r);
             items.forEach((m, i) => {
                 if (m.lat == null) return;
-                const cls = 'photo-pin';
-                const inner = m.type === 'video' ? '<span class="play-tri"></span>' : `<img src="${m.src}" loading="lazy" alt="">`;
-                const marker = L.marker([m.lat, m.lng], {
-                    icon: L.divIcon({ className: '', html: `<div class="${cls}" style="border-color:${r.color}">${inner}</div>`, iconSize: [18, 18], iconAnchor: [9, 9] }),
-                    zIndexOffset: 500,
-                    riseOnHover: true,
-                }).bindTooltip(`${m.type === 'video' ? 'Video' : 'Photo'} · ${formatTime(m.time) || m.file}`);
-                marker.on('click', async () => {
+                const el = document.createElement('div');
+                el.className = 'photo-marker';
+                el.title = `${m.type === 'video' ? 'Video' : 'Photo'} · ${formatTime(m.time) || m.file}`;
+                el.innerHTML = `<div class="photo-pin" style="border-color:${r.color}">${m.type === 'video' ? '<span class="play-tri"></span>' : `<img src="${m.src}" loading="lazy" alt="">`}</div>`;
+                el.addEventListener('click', async (ev) => {
+                    ev.stopPropagation();
                     if (focusedRoute !== r.id) { focusRoute(r); await mediaReady; }
                     showMedia(i);
                 });
+                const marker = new maplibregl.Marker({ element: el }).setLngLat([m.lng, m.lat]);
+                if (s.visible) marker.addTo(map);
                 s.mediaMarkers[i] = marker;
-                s.layer.addLayer(marker);
             });
             highlightMarker();
         }
@@ -1110,7 +1264,7 @@
                 <div class="badges">${badges.join('')}</div>`;
 
             const locate = document.getElementById('locate-btn');
-            if (locate) locate.onclick = () => map.flyTo([m.lat, m.lng], Math.max(map.getZoom(), 16), { duration: 0.8 });
+            if (locate) locate.onclick = () => map.flyTo({ center: [m.lng, m.lat], zoom: Math.max(map.getZoom(), 16), duration: 800 });
         }
 
         function mediaElement(m, big) {
@@ -1203,14 +1357,14 @@
                 },
                 onHover: (evt, elements) => {
                     const el = elements[0];
-                    if (!el) { map.removeLayer(hoverMarker); return; }
+                    if (!el) { hideHover(); return; }
                     const p = chart.data.datasets[el.datasetIndex].data[el.index];
-                    hoverMarker.setLatLng([p.lat, p.lng]).addTo(map);
+                    showHover(p.lng, p.lat);
                 },
             },
         });
 
-        document.getElementById('elevationChart').addEventListener('mouseleave', () => map.removeLayer(hoverMarker));
+        document.getElementById('elevationChart').addEventListener('mouseleave', hideHover);
 
         function updateChart() {
             const visible = ROUTES.filter(r => state[r.id]?.visible);
